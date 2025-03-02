@@ -1,13 +1,6 @@
 <template>
-  <div>
-    <h1>Welcome to Home Page</h1>
-    <p>This is a simple SPA with Vue Router.</p>
+  <div class="bg-red-500 text-white text-center p-4">
+    <h1 class="text-3xl font-bold">If this is red, Tailwind works!</h1>
   </div>
 </template>
-
-<style scoped>
-h1 {
-  color: #42b983;
-}
-</style>
 

@@ -1,13 +1,7 @@
 <template>
-  <div>
-    <h1>About Page</h1>
-    <p>This is the About page of our Vue SPA.</p>
+  <div class="flex flex-col items-center justify-center min-h-screen">
+    <h1 class="text-4xl font-bold text-primary">DaisyUI Test</h1>
+    <button class="btn btn-primary mt-4">DaisyUI Button</button>
   </div>
 </template>
-
-<style scoped>
-h1 {
-  color: #ff5733;
-}
-</style>
 
