@@ -1,0 +1,1 @@
+now i want you to create an oage named Pic_Upload.vue , it will do these crud operations like, post (http://localhost:5000/pictures?book_id=1 with multipart) and same for put and for delete (http://localhost:5000/pictures?filename=1.png) and to get all pictures in json format get (http://localhost:5000/pictures).

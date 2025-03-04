@@ -13,6 +13,7 @@
             <li><router-link to="/" class="btn btn-sm btn-primary">Home</router-link></li>
             <li><router-link to="/book" class="btn btn-sm btn-primary">Book</router-link></li>
             <li><router-link to="/static" class="btn btn-sm btn-primary">Static</router-link></li>
+            <li><router-link to="/uploadpic" class="btn btn-sm btn-primary">Upload Pics</router-link></li>
             <li><router-link to="/about" class="btn btn-sm btn-secondary">About</router-link></li>
             <li><a class="btn btn-sm btn-outline btn-accent">Contact</a></li>
           </ul>
