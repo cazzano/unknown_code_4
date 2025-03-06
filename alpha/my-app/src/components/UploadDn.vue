@@ -6,6 +6,41 @@
       <p class="mt-2 text-lg">Browse books and upload Documents for your favorites</p>
     </div>
 
+    <!-- Search and filter -->
+    <div class="flex flex-col md:flex-row gap-4 justify-between">
+      <div class="form-control w-full md:w-96">
+        <div class="input-group">
+          <input 
+            type="text" 
+            placeholder="Search books by title, author, or category..." 
+            class="input input-bordered w-full" 
+            v-model="searchQuery"
+            @input="handleSearch"
+          />
+          <button class="btn btn-square btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="flex gap-2">
+        <select class="select select-bordered" v-model="categoryFilter" @change="handleSearch">
+          <option value="">All Categories</option>
+          <option v-for="category in uniqueCategories" :key="category" :value="category">
+            {{ category }}
+          </option>
+        </select>
+        
+        <select class="select select-bordered" v-model="sortBy" @change="handleSearch">
+          <option value="name">Sort by Title</option>
+          <option value="author_name">Sort by Author</option>
+          <option value="category">Sort by Category</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Loading state -->
     <div v-if="loading" class="flex justify-center items-center py-12">
       <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -20,9 +55,9 @@
     </div>
 
     <!-- Books grid -->
-    <div v-if="books.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div v-if="paginatedBooks.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
-        v-for="book in books" 
+        v-for="book in paginatedBooks" 
         :key="book.books_id" 
         class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300"
       >
@@ -61,19 +96,83 @@
               class="btn btn-sm btn-primary"
               @click.stop="selectBook(book)"
             >
-              Upload New Docuemnt
+              Upload New Document
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Empty state -->
+    <!-- Empty state for filtered results -->
+    <div v-if="!loading && filteredBooks.length === 0 && books.length > 0" class="alert alert-info shadow-lg">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span>No books match your search criteria. Try adjusting your filters.</span>
+      </div>
+    </div>
+
+    <!-- Empty state for no books -->
     <div v-if="!loading && books.length === 0 && !error" class="alert alert-info shadow-lg">
       <div>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         <span>No books available at this time.</span>
       </div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="filteredBooks.length > 0" class="flex justify-center my-6">
+      <div class="btn-group">
+        <button 
+          class="btn" 
+          :class="{ 'btn-disabled': currentPage === 1 }"
+          @click="goToPage(1)"
+        >
+          «
+        </button>
+        <button 
+          class="btn" 
+          :class="{ 'btn-disabled': currentPage === 1 }"
+          @click="goToPage(currentPage - 1)"
+        >
+          ‹
+        </button>
+        
+        <button 
+          v-for="page in displayedPages" 
+          :key="page" 
+          class="btn" 
+          :class="{ 'btn-active': currentPage === page }"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+        
+        <button 
+          class="btn" 
+          :class="{ 'btn-disabled': currentPage === totalPages }"
+          @click="goToPage(currentPage + 1)"
+        >
+          ›
+        </button>
+        <button 
+          class="btn" 
+          :class="{ 'btn-disabled': currentPage === totalPages }"
+          @click="goToPage(totalPages)"
+        >
+          »
+        </button>
+      </div>
+    </div>
+    
+    <!-- Page size selector -->
+    <div v-if="filteredBooks.length > 0" class="flex justify-center items-center gap-2">
+      <span class="text-sm">Books per page:</span>
+      <select v-model="pageSize" class="select select-bordered select-sm" @change="handlePageSizeChange">
+        <option :value="6">6</option>
+        <option :value="12">12</option>
+        <option :value="24">24</option>
+      </select>
+      <span class="text-sm ml-4">Showing {{ paginationInfo }}</span>
     </div>
 
     <!-- Upload modal -->
@@ -202,7 +301,101 @@ export default {
       bookForDelete: null,
       deleting: false,
       deleteSuccess: false,
-      deleteError: null
+      deleteError: null,
+      
+      // Search and filter
+      searchQuery: '',
+      categoryFilter: '',
+      sortBy: 'name',
+      
+      // Pagination
+      currentPage: 1,
+      pageSize: 6,
+    }
+  },
+  computed: {
+    // Get unique categories for filter dropdown
+    uniqueCategories() {
+      const categories = this.books.map(book => book.category)
+      return [...new Set(categories)].sort()
+    },
+    
+    // Filtered and sorted books
+    filteredBooks() {
+      let result = [...this.books]
+      
+      // Apply search filter
+      if (this.searchQuery) {
+        const query = this.searchQuery.toLowerCase()
+        result = result.filter(book => 
+          book.name.toLowerCase().includes(query) || 
+          book.author_name.toLowerCase().includes(query) || 
+          book.category.toLowerCase().includes(query) ||
+          (book.description && book.description.toLowerCase().includes(query))
+        )
+      }
+      
+      // Apply category filter
+      if (this.categoryFilter) {
+        result = result.filter(book => book.category === this.categoryFilter)
+      }
+      
+      // Apply sorting
+      result.sort((a, b) => {
+        if (a[this.sortBy] < b[this.sortBy]) return -1
+        if (a[this.sortBy] > b[this.sortBy]) return 1
+        return 0
+      })
+      
+      return result
+    },
+    
+    // Total pages for pagination
+    totalPages() {
+      return Math.ceil(this.filteredBooks.length / this.pageSize)
+    },
+    
+    // Current page's books
+    paginatedBooks() {
+      const startIndex = (this.currentPage - 1) * this.pageSize
+      const endIndex = startIndex + this.pageSize
+      return this.filteredBooks.slice(startIndex, endIndex)
+    },
+    
+    // Pages to display in pagination controls
+    displayedPages() {
+      const MAX_DISPLAYED_PAGES = 5
+      let pages = []
+      
+      if (this.totalPages <= MAX_DISPLAYED_PAGES) {
+        // Display all pages if there are fewer than MAX_DISPLAYED_PAGES
+        for (let i = 1; i <= this.totalPages; i++) {
+          pages.push(i)
+        }
+      } else {
+        // Calculate range of pages to display
+        let start = Math.max(1, this.currentPage - Math.floor(MAX_DISPLAYED_PAGES / 2))
+        let end = start + MAX_DISPLAYED_PAGES - 1
+        
+        // Adjust if end is beyond totalPages
+        if (end > this.totalPages) {
+          end = this.totalPages
+          start = Math.max(1, end - MAX_DISPLAYED_PAGES + 1)
+        }
+        
+        for (let i = start; i <= end; i++) {
+          pages.push(i)
+        }
+      }
+      
+      return pages
+    },
+    
+    // Pagination info text
+    paginationInfo() {
+      const startItem = ((this.currentPage - 1) * this.pageSize) + 1
+      const endItem = Math.min(startItem + this.pageSize - 1, this.filteredBooks.length)
+      return `${startItem}-${endItem} of ${this.filteredBooks.length} books`
     }
   },
   mounted() {
@@ -229,6 +422,33 @@ export default {
       }
     },
     
+    // Search and filter handlers
+    handleSearch() {
+      // Reset to first page when search/filter changes
+      this.currentPage = 1
+    },
+    
+    // Pagination methods
+    goToPage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page
+        // Scroll to top of book grid
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    },
+    
+    handlePageSizeChange() {
+      // Recalculate current page to maintain position as much as possible
+      const firstItemIndex = ((this.currentPage - 1) * this.pageSize) + 1
+      this.currentPage = Math.ceil(firstItemIndex / this.pageSize)
+      
+      // Ensure current page is valid
+      if (this.currentPage > this.totalPages) {
+        this.currentPage = this.totalPages || 1
+      }
+    },
+    
+    // Book selection methods
     selectBook(book) {
       this.selectedBook = book
       this.selectedFile = null

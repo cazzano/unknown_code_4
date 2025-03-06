@@ -6,6 +6,42 @@
       <p class="mt-2 text-lg">Browse books and upload pictures for your favorites</p>
     </div>
 
+    <!-- Search and filter section -->
+    <div class="flex flex-col md:flex-row gap-4 justify-between">
+      <div class="form-control w-full md:w-1/2">
+        <div class="input-group">
+          <input 
+            type="text" 
+            placeholder="Search by title, author, or category..." 
+            class="input input-bordered w-full" 
+            v-model="searchQuery"
+            @input="handleSearch"
+          />
+          <button class="btn btn-square btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="flex flex-wrap gap-2">
+        <select class="select select-bordered" v-model="categoryFilter" @change="applyFilters">
+          <option value="">All Categories</option>
+          <option v-for="category in uniqueCategories" :key="category" :value="category">
+            {{ category }}
+          </option>
+        </select>
+        
+        <select class="select select-bordered" v-model="sortOption" @change="applyFilters">
+          <option value="name_asc">Name (A-Z)</option>
+          <option value="name_desc">Name (Z-A)</option>
+          <option value="author_asc">Author (A-Z)</option>
+          <option value="author_desc">Author (Z-A)</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Loading state -->
     <div v-if="loading" class="flex justify-center items-center py-12">
       <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -19,10 +55,19 @@
       </div>
     </div>
 
+    <!-- No results state -->
+    <div v-if="!loading && filteredBooks.length === 0 && !error" class="alert alert-info shadow-lg">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span v-if="searchQuery || categoryFilter">No books match your search criteria. Try adjusting your filters.</span>
+        <span v-else>No books available at this time.</span>
+      </div>
+    </div>
+
     <!-- Books grid -->
-    <div v-if="books.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div v-if="paginatedBooks.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div 
-        v-for="book in books" 
+        v-for="book in paginatedBooks" 
         :key="book.books_id" 
         class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300"
       >
@@ -68,11 +113,69 @@
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div v-if="!loading && books.length === 0 && !error" class="alert alert-info shadow-lg">
-      <div>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span>No books available at this time.</span>
+    <!-- Pagination -->
+    <div v-if="filteredBooks.length > 0" class="flex justify-center mt-8">
+      <div class="btn-group">
+        <button 
+          class="btn" 
+          :class="{ 'btn-active': currentPage === 1 }"
+          :disabled="currentPage === 1"
+          @click="goToPage(1)"
+        >
+          «
+        </button>
+        
+        <button 
+          class="btn" 
+          :class="{ 'btn-active': currentPage === 1 }"
+          :disabled="currentPage === 1"
+          @click="goToPage(currentPage - 1)"
+        >
+          ‹
+        </button>
+        
+        <button 
+          v-for="page in displayedPages" 
+          :key="page" 
+          class="btn" 
+          :class="{ 'btn-active': currentPage === page }"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+        
+        <button 
+          class="btn" 
+          :class="{ 'btn-active': currentPage === totalPages }"
+          :disabled="currentPage === totalPages"
+          @click="goToPage(currentPage + 1)"
+        >
+          ›
+        </button>
+        
+        <button 
+          class="btn" 
+          :class="{ 'btn-active': currentPage === totalPages }"
+          :disabled="currentPage === totalPages"
+          @click="goToPage(totalPages)"
+        >
+          »
+        </button>
+      </div>
+    </div>
+
+    <!-- Per page selector -->
+    <div v-if="filteredBooks.length > 0" class="flex justify-center mt-4">
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Books per page</span>
+        </label>
+        <select v-model="perPage" class="select select-bordered" @change="handlePerPageChange">
+          <option value="6">6</option>
+          <option value="9">9</option>
+          <option value="12">12</option>
+          <option value="24">24</option>
+        </select>
       </div>
     </div>
 
@@ -202,164 +305,289 @@ export default {
       bookForDelete: null,
       deleting: false,
       deleteSuccess: false,
-      deleteError: null
+      deleteError: null,
+      
+      // Search and filter functionality
+      searchQuery: '',
+      searchTimeout: null,
+      categoryFilter: '',
+      sortOption: 'name_asc',
+      
+      // Pagination
+      currentPage: 1,
+      perPage: 9,
+      maxPageDisplay: 5
+    }
+  },
+  computed: {
+    // Get unique categories for the filter dropdown
+    uniqueCategories() {
+      return [...new Set(this.books.map(book => book.category))];
+    },
+    
+    // Filter books based on search query and category filter
+    filteredBooks() {
+      let result = [...this.books];
+      
+      // Apply search filter
+      if (this.searchQuery.trim() !== '') {
+        const query = this.searchQuery.toLowerCase().trim();
+        result = result.filter(book => 
+          book.name.toLowerCase().includes(query) || 
+          book.author_name.toLowerCase().includes(query) || 
+          book.category.toLowerCase().includes(query) ||
+          (book.description && book.description.toLowerCase().includes(query))
+        );
+      }
+      
+      // Apply category filter
+      if (this.categoryFilter) {
+        result = result.filter(book => book.category === this.categoryFilter);
+      }
+      
+      // Apply sorting
+      result = this.sortBooks(result);
+      
+      return result;
+    },
+    
+    // Calculate total pages based on filtered books and per page count
+    totalPages() {
+      return Math.max(1, Math.ceil(this.filteredBooks.length / this.perPage));
+    },
+    
+    // Calculate which pages to display in pagination
+    displayedPages() {
+      const pages = [];
+      const halfDisplayCount = Math.floor(this.maxPageDisplay / 2);
+      
+      // Calculate start and end page numbers to display
+      let startPage = Math.max(1, this.currentPage - halfDisplayCount);
+      let endPage = Math.min(this.totalPages, startPage + this.maxPageDisplay - 1);
+      
+      // Adjust startPage if we're near the end
+      if (endPage - startPage + 1 < this.maxPageDisplay) {
+        startPage = Math.max(1, endPage - this.maxPageDisplay + 1);
+      }
+      
+      // Generate the page numbers array
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+      
+      return pages;
+    },
+    
+    // Get paginated books to display
+    paginatedBooks() {
+      const start = (this.currentPage - 1) * this.perPage;
+      const end = start + this.perPage;
+      return this.filteredBooks.slice(start, end);
     }
   },
   mounted() {
-    this.fetchBooks()
+    this.fetchBooks();
   },
   methods: {
     async fetchBooks() {
-      this.loading = true
-      this.error = null
+      this.loading = true;
+      this.error = null;
       
       try {
-        const response = await fetch('http://localhost:5000/books')
+        const response = await fetch('http://localhost:5000/books');
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch books: ${response.status} ${response.statusText}`)
+          throw new Error(`Failed to fetch books: ${response.status} ${response.statusText}`);
         }
         
-        this.books = await response.json()
+        this.books = await response.json();
+        
+        // Reset to page 1 when fetching new data
+        this.currentPage = 1;
       } catch (err) {
-        console.error('Error fetching books:', err)
-        this.error = 'Failed to load books. Please try again later.'
+        console.error('Error fetching books:', err);
+        this.error = 'Failed to load books. Please try again later.';
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     },
     
+    // Search and filter methods
+    handleSearch() {
+      // Debounce search to avoid rapid API calls
+      clearTimeout(this.searchTimeout);
+      this.searchTimeout = setTimeout(() => {
+        this.currentPage = 1; // Reset to first page on search
+      }, 300);
+    },
+    
+    applyFilters() {
+      this.currentPage = 1; // Reset to first page when filters change
+    },
+    
+    sortBooks(books) {
+      const sortedBooks = [...books];
+      
+      switch(this.sortOption) {
+        case 'name_asc':
+          return sortedBooks.sort((a, b) => a.name.localeCompare(b.name));
+        case 'name_desc':
+          return sortedBooks.sort((a, b) => b.name.localeCompare(a.name));
+        case 'author_asc':
+          return sortedBooks.sort((a, b) => a.author_name.localeCompare(b.author_name));
+        case 'author_desc':
+          return sortedBooks.sort((a, b) => b.author_name.localeCompare(a.author_name));
+        default:
+          return sortedBooks;
+      }
+    },
+    
+    // Pagination methods
+    goToPage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page;
+        // Scroll to top of books section
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    
+    handlePerPageChange() {
+      // Reset to first page when changing items per page
+      this.currentPage = 1;
+    },
+    
+    // Original functionality
     selectBook(book) {
-      this.selectedBook = book
-      this.selectedFile = null
-      this.filePreview = null
-      this.uploadSuccess = false
-      this.uploadError = null
-      this.isUpdateMode = false
+      this.selectedBook = book;
+      this.selectedFile = null;
+      this.filePreview = null;
+      this.uploadSuccess = false;
+      this.uploadError = null;
+      this.isUpdateMode = false;
       
       // Reset file input
       if (this.$refs.fileInput) {
-        this.$refs.fileInput.value = ''
+        this.$refs.fileInput.value = '';
       }
     },
     
     selectBookForUpdate(book) {
-      this.selectBook(book)
-      this.isUpdateMode = true
+      this.selectBook(book);
+      this.isUpdateMode = true;
     },
     
     closeModal() {
-      this.selectedBook = null
-      this.selectedFile = null
-      this.filePreview = null
-      this.isUpdateMode = false
+      this.selectedBook = null;
+      this.selectedFile = null;
+      this.filePreview = null;
+      this.isUpdateMode = false;
     },
     
     handleFileChange(event) {
-      const file = event.target.files[0]
-      if (!file) return
+      const file = event.target.files[0];
+      if (!file) return;
       
       // Store the file
-      this.selectedFile = file
-      this.uploadSuccess = false
-      this.uploadError = null
+      this.selectedFile = file;
+      this.uploadSuccess = false;
+      this.uploadError = null;
       
       // Create preview
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = e => {
-        this.filePreview = e.target.result
-      }
-      reader.readAsDataURL(file)
+        this.filePreview = e.target.result;
+      };
+      reader.readAsDataURL(file);
     },
     
     async uploadPicture() {
-      if (!this.selectedFile || !this.selectedBook) return
+      if (!this.selectedFile || !this.selectedBook) return;
       
-      this.uploading = true
-      this.uploadSuccess = false
-      this.uploadError = null
+      this.uploading = true;
+      this.uploadSuccess = false;
+      this.uploadError = null;
       
       try {
-        const formData = new FormData()
-        formData.append('file', this.selectedFile)
+        const formData = new FormData();
+        formData.append('file', this.selectedFile);
         
         // Use PUT method for update mode, POST for new upload
-        const method = this.isUpdateMode ? 'PUT' : 'POST'
-        console.log(`${method} request to book_id: ${this.selectedBook.books_id}`)
+        const method = this.isUpdateMode ? 'PUT' : 'POST';
+        console.log(`${method} request to book_id: ${this.selectedBook.books_id}`);
         
         const response = await fetch(`http://localhost:3000/pictures?book_id=${this.selectedBook.books_id}`, {
           method: method,
           body: formData
-        })
+        });
         
-        console.log('Response status:', response.status)
+        console.log('Response status:', response.status);
         
         if (!response.ok) {
-          const errorText = await response.text()
-          console.error('Error response:', errorText)
-          throw new Error(`${this.isUpdateMode ? 'Update' : 'Upload'} failed: ${response.status} ${response.statusText}`)
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`${this.isUpdateMode ? 'Update' : 'Upload'} failed: ${response.status} ${response.statusText}`);
         }
         
-        this.uploadSuccess = true
+        this.uploadSuccess = true;
         
         // Refresh books data after successful upload
         setTimeout(() => {
-          this.fetchBooks()
-          this.closeModal()
-        }, 1500)
+          this.fetchBooks();
+          this.closeModal();
+        }, 1500);
       } catch (err) {
-        console.error(`Error ${this.isUpdateMode ? 'updating' : 'uploading'} picture:`, err)
-        this.uploadError = `Failed to ${this.isUpdateMode ? 'update' : 'upload'} picture. Please try again.`
+        console.error(`Error ${this.isUpdateMode ? 'updating' : 'uploading'} picture:`, err);
+        this.uploadError = `Failed to ${this.isUpdateMode ? 'update' : 'upload'} picture. Please try again.`;
       } finally {
-        this.uploading = false
+        this.uploading = false;
       }
     },
     
     // Delete functionality methods
     openDeleteModal(book) {
-      this.deleteModalOpen = true
-      this.bookForDelete = book
-      this.deleteSuccess = false
-      this.deleteError = null
+      this.deleteModalOpen = true;
+      this.bookForDelete = book;
+      this.deleteSuccess = false;
+      this.deleteError = null;
     },
     
     closeDeleteModal() {
-      this.deleteModalOpen = false
-      this.bookForDelete = null
+      this.deleteModalOpen = false;
+      this.bookForDelete = null;
     },
     
     async deletePicture() {
-      if (!this.bookForDelete) return
+      if (!this.bookForDelete) return;
       
-      this.deleting = true
-      this.deleteSuccess = false
-      this.deleteError = null
+      this.deleting = true;
+      this.deleteSuccess = false;
+      this.deleteError = null;
       
       try {
         const response = await fetch(`http://localhost:3000/pictures?book_id=${this.bookForDelete.books_id}`, {
           method: 'DELETE'
-        })
+        });
         
         if (!response.ok) {
-          const errorText = await response.text()
-          console.error('Error response:', errorText)
-          throw new Error(`Delete failed: ${response.status} ${response.statusText}`)
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Delete failed: ${response.status} ${response.statusText}`);
         }
         
-        this.deleteSuccess = true
+        this.deleteSuccess = true;
         
         // Refresh books data after successful deletion
         setTimeout(() => {
-          this.fetchBooks()
+          this.fetchBooks();
           if (this.deleteSuccess) {
-            this.closeDeleteModal()
+            this.closeDeleteModal();
           }
-        }, 1500)
+        }, 1500);
       } catch (err) {
-        console.error('Error deleting picture:', err)
-        this.deleteError = 'Failed to delete picture. Please try again.'
+        console.error('Error deleting picture:', err);
+        this.deleteError = 'Failed to delete picture. Please try again.';
       } finally {
-        this.deleting = false
+        this.deleting = false;
       }
     }
   }
