@@ -3,7 +3,7 @@
     <!-- Page header -->
     <div class="text-center">
       <h1 class="text-4xl font-bold text-primary">Books Gallery</h1>
-      <p class="mt-2 text-lg">Browse books and upload pictures for your favorites</p>
+      <p class="mt-2 text-lg">Browse books and upload Documents for your favorites</p>
     </div>
 
     <!-- Loading state -->
@@ -49,19 +49,19 @@
               class="btn btn-sm btn-outline btn-error"
               @click.stop="openDeleteModal(book)"
             >
-              Delete Picture
+              Delete Documents
             </button>
             <button 
               class="btn btn-sm btn-outline btn-accent"
               @click.stop="selectBookForUpdate(book)"
             >
-              Change Picture
+              Change Documents
             </button>
             <button 
               class="btn btn-sm btn-primary"
               @click.stop="selectBook(book)"
             >
-              Upload New Picture
+              Upload New Docuemnt
             </button>
           </div>
         </div>
@@ -84,7 +84,7 @@
         <div class="py-4">
           <div v-if="uploadSuccess" class="alert alert-success mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>Picture uploaded successfully!</span>
+            <span>Document uploaded successfully!</span>
           </div>
           
           <div v-if="uploadError" class="alert alert-error mb-4">
@@ -94,7 +94,7 @@
           
           <div class="form-control w-full">
             <label class="label">
-              <span class="label-text">Choose a picture to upload</span>
+              <span class="label-text">Choose a document to upload</span>
             </label>
             <input 
               type="file" 
@@ -129,7 +129,7 @@
             @click="uploadPicture"
           >
             <span v-if="uploading" class="loading loading-spinner loading-sm"></span>
-            {{ isUpdateMode ? 'Update Picture' : 'Upload Picture' }}
+            {{ isUpdateMode ? 'Update Document' : 'Upload Document' }}
           </button>
         </div>
       </div>
@@ -143,7 +143,7 @@
         <div class="py-4">
           <div v-if="deleteSuccess" class="alert alert-success mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span>Picture deleted successfully!</span>
+            <span>Document deleted successfully!</span>
           </div>
           
           <div v-if="deleteError" class="alert alert-error mb-4">
@@ -153,7 +153,7 @@
           
           <div v-if="bookForDelete" class="alert alert-warning mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            <span>Are you sure you want to delete the picture for "{{ bookForDelete.name }}"?</span>
+            <span>Are you sure you want to delete the document for "{{ bookForDelete.name }}"?</span>
           </div>
           
           <div v-if="bookForDelete && bookForDelete.static_resources && bookForDelete.static_resources.picture_url" class="flex justify-center mb-4">
@@ -174,7 +174,7 @@
             @click="deletePicture"
           >
             <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
-            Delete Picture
+            Delete Document
           </button>
         </div>
       </div>
@@ -287,7 +287,7 @@ export default {
         const method = this.isUpdateMode ? 'PUT' : 'POST'
         console.log(`${method} request to book_id: ${this.selectedBook.books_id}`)
         
-        const response = await fetch(`http://localhost:3000/pictures?book_id=${this.selectedBook.books_id}`, {
+        const response = await fetch(`http://localhost:3000/downloads?book_id=${this.selectedBook.books_id}`, {
           method: method,
           body: formData
         })
@@ -336,7 +336,7 @@ export default {
       this.deleteError = null
       
       try {
-        const response = await fetch(`http://localhost:3000/pictures?book_id=${this.bookForDelete.books_id}`, {
+        const response = await fetch(`http://localhost:3000/downloads?book_id=${this.bookForDelete.books_id}`, {
           method: 'DELETE'
         })
         

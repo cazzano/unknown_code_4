@@ -1,240 +1,180 @@
 <template>
   <div class="flex flex-col gap-8">
-    <h1 class="text-4xl font-bold text-primary">Picture Management</h1>
-    
-    <!-- Book Selection -->
-    <div class="bg-base-100 rounded-box shadow-lg p-6">
-      <h2 class="text-2xl font-bold text-secondary mb-6">Select Book</h2>
-      
-      <div v-if="loadingBooks" class="flex justify-center p-4">
-        <span class="loading loading-spinner loading-lg text-primary"></span>
-      </div>
-      <div v-else-if="booksError" class="alert alert-error">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <span>{{ booksError }}</span>
-      </div>
-      <div v-else>
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text font-medium">Select a book to manage pictures</span>
-          </label>
-          <select v-model="selectedBookId" class="select select-bordered select-primary w-full max-w-md">
-            <option disabled value="">Please select a book</option>
-            <option v-for="book in books" :key="book.books_id" :value="book.books_id">
-              {{ book.name || 'Book #' + book.books_id }} (ID: {{ book.books_id }})
-            </option>
-          </select>
-        </div>
-      </div>
+    <!-- Page header -->
+    <div class="text-center">
+      <h1 class="text-4xl font-bold text-primary">Books Gallery</h1>
+      <p class="mt-2 text-lg">Browse books and upload pictures for your favorites</p>
     </div>
-    
-    <!-- Upload Picture Section -->
-    <div v-if="selectedBookId" class="bg-base-100 rounded-box shadow-lg p-6">
-      <h2 class="text-2xl font-bold text-secondary mb-6">Upload New Picture</h2>
-      
-      <div class="flex flex-col md:flex-row gap-4 items-start">
-        <div class="form-control flex-grow">
-          <label class="label">
-            <span class="label-text">Select an image file</span>
-          </label>
-          <input 
-            type="file" 
-            accept="image/*" 
-            @change="handleFileSelect" 
-            class="file-input file-input-bordered file-input-primary w-full" 
-          />
-          <label class="label" v-if="selectedFile">
-            <span class="label-text-alt">Selected: {{ selectedFile.name }}</span>
-          </label>
-        </div>
-        
-        <div class="form-control mt-8">
-          <button 
-            @click="uploadPicture" 
-            class="btn btn-primary"
-            :disabled="!selectedFile || isUploading"
-          >
-            <svg v-if="!isUploading" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
-            </svg>
-            <span v-if="isUploading" class="loading loading-spinner loading-sm mr-2"></span>
-            {{ isUploading ? 'Uploading...' : 'Upload Picture' }}
-          </button>
-        </div>
-      </div>
-      
-      <div v-if="uploadError" class="alert alert-error mt-4">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <span>{{ uploadError }}</span>
-      </div>
+
+    <!-- Loading state -->
+    <div v-if="loading" class="flex justify-center items-center py-12">
+      <span class="loading loading-spinner loading-lg text-primary"></span>
     </div>
-    
-    <!-- Pictures Gallery -->
-    <div v-if="selectedBookId" class="bg-base-100 rounded-box shadow-lg p-6">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-secondary">Picture Gallery</h2>
-        <div class="badge badge-primary p-3 text-sm">
-          Book ID: {{ selectedBookId }}
-        </div>
-      </div>
-      
-      <div v-if="isLoading" class="flex justify-center p-10">
-        <span class="loading loading-spinner loading-lg text-primary"></span>
-      </div>
-      <div v-else-if="error" class="alert alert-error">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+
+    <!-- Error state -->
+    <div v-if="error" class="alert alert-error shadow-lg">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         <span>{{ error }}</span>
       </div>
-      <div v-else-if="pictures.length === 0" class="alert alert-info">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span>No pictures available for this book. Upload some using the form above.</span>
-      </div>
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="picture in pictures" :key="picture.filename" class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-base-300">
-          <figure class="h-64 bg-base-200">
-            <img 
-              :src="getImageUrl(picture.filename)" 
-              :alt="picture.filename" 
-              class="object-cover w-full h-full" 
-              @error="handleImageError" 
-            />
-          </figure>
-          <div class="card-body p-4">
-            <div class="flex justify-between items-center">
-              <h3 class="card-title text-primary truncate">{{ picture.filename }}</h3>
-              <div class="badge badge-secondary">{{ formatFileSize(picture.size) }}</div>
-            </div>
-            <p class="text-sm opacity-70">Uploaded: {{ formatDate(picture.upload_date) }}</p>
-            <div class="card-actions justify-end mt-4">
-              <button 
-                @click="openViewModal(picture)" 
-                class="btn btn-sm btn-outline btn-primary"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                View
-              </button>
-              <button 
-                @click="openEditModal(picture)" 
-                class="btn btn-sm btn-secondary"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Update
-              </button>
-              <button 
-                @click="confirmDelete(picture.filename)" 
-                class="btn btn-sm btn-error"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </button>
-            </div>
+    </div>
+
+    <!-- Books grid -->
+    <div v-if="books.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div 
+        v-for="book in books" 
+        :key="book.books_id" 
+        class="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300"
+      >
+        <figure class="px-10 pt-10 relative group">
+          <img :src="book.static_resources.picture_url" :alt="book.name" class="rounded-xl h-48 object-cover" />
+          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <button 
+              class="btn btn-circle btn-secondary"
+              @click.stop="selectBookForUpdate(book)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+        </figure>
+        <div class="card-body">
+          <h2 class="card-title text-secondary">{{ book.name }}</h2>
+          <div class="badge badge-primary">{{ book.category }}</div>
+          <p class="text-sm mt-2">By {{ book.author_name }}</p>
+          <p>{{ book.description }}</p>
+          <div class="card-actions justify-end mt-4">
+            <button 
+              class="btn btn-sm btn-outline btn-error"
+              @click.stop="openDeleteModal(book)"
+            >
+              Delete Picture
+            </button>
+            <button 
+              class="btn btn-sm btn-outline btn-accent"
+              @click.stop="selectBookForUpdate(book)"
+            >
+              Change Picture
+            </button>
+            <button 
+              class="btn btn-sm btn-primary"
+              @click.stop="selectBook(book)"
+            >
+              Upload New Picture
+            </button>
           </div>
         </div>
       </div>
     </div>
-    
-    <!-- View Image Modal -->
-    <div v-if="showViewModal" class="modal modal-open">
-      <div class="modal-box max-w-3xl">
-        <h3 class="font-bold text-xl text-primary">{{ selectedPicture.filename }}</h3>
-        <button @click="closeViewModal" class="btn btn-sm btn-circle absolute right-2 top-2">✕</button>
+
+    <!-- Empty state -->
+    <div v-if="!loading && books.length === 0 && !error" class="alert alert-info shadow-lg">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span>No books available at this time.</span>
+      </div>
+    </div>
+
+    <!-- Upload modal -->
+    <div class="modal" :class="{ 'modal-open': selectedBook !== null }">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg text-primary">Upload Picture for "{{ selectedBook?.name }}"</h3>
         
         <div class="py-4">
-          <img 
-            :src="getImageUrl(selectedPicture.filename)" 
-            :alt="selectedPicture.filename" 
-            class="w-full rounded-lg shadow-lg" 
-          />
-        </div>
-        
-        <div class="modal-action">
-          <button @click="closeViewModal" class="btn btn-ghost">Close</button>
-          <a :href="getImageUrl(selectedPicture.filename)" download class="btn btn-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Update Image Modal -->
-    <div v-if="showEditModal" class="modal modal-open">
-      <div class="modal-box">
-        <h3 class="font-bold text-xl text-secondary">Update Image</h3>
-        <button @click="closeEditModal" class="btn btn-sm btn-circle absolute right-2 top-2">✕</button>
-        
-        <div class="alert alert-info shadow-lg mb-4 mt-4">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <div>
-            <span class="text-sm">Replacing image: <strong>{{ selectedPicture.filename }}</strong></span>
+          <div v-if="uploadSuccess" class="alert alert-success mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>Picture uploaded successfully!</span>
+          </div>
+          
+          <div v-if="uploadError" class="alert alert-error mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>{{ uploadError }}</span>
+          </div>
+          
+          <div class="form-control w-full">
+            <label class="label">
+              <span class="label-text">Choose a picture to upload</span>
+            </label>
+            <input 
+              type="file" 
+              accept="image/*" 
+              class="file-input file-input-bordered file-input-primary w-full" 
+              @change="handleFileChange"
+              ref="fileInput"
+            />
+          </div>
+          
+          <div v-if="selectedFile" class="mt-4">
+            <div class="flex items-center gap-2">
+              <div class="badge badge-primary">Selected File</div>
+              <p class="text-sm">{{ selectedFile.name }}</p>
+            </div>
+            
+            <div v-if="filePreview" class="mt-4 flex justify-center">
+              <img :src="filePreview" alt="Preview" class="max-h-40 rounded-lg" />
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <p class="text-sm text-info">Book ID: {{ selectedBook?.books_id }}</p>
           </div>
         </div>
         
-        <div class="form-control w-full mt-4">
-          <label class="label">
-            <span class="label-text">Select a new image file</span>
-          </label>
-          <input 
-            type="file" 
-            accept="image/*" 
-            @change="handleFileSelect" 
-            class="file-input file-input-bordered file-input-primary w-full" 
-          />
-        </div>
-        
-        <div v-if="updateError" class="alert alert-error mt-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          <span>{{ updateError }}</span>
-        </div>
-        
         <div class="modal-action">
-          <button @click="closeEditModal" class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-outline" @click="closeModal">Cancel</button>
           <button 
-            @click="updatePicture" 
-            class="btn btn-secondary" 
-            :disabled="!selectedFile || isUploading"
+            class="btn btn-primary" 
+            :disabled="!selectedFile || uploading" 
+            @click="uploadPicture"
           >
-            <span v-if="isUploading" class="loading loading-spinner loading-sm mr-2"></span>
-            {{ isUploading ? 'Updating...' : 'Update Image' }}
+            <span v-if="uploading" class="loading loading-spinner loading-sm"></span>
+            {{ isUpdateMode ? 'Update Picture' : 'Upload Picture' }}
           </button>
         </div>
       </div>
     </div>
-    
-    <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteModal" class="modal modal-open">
+
+    <!-- Delete modal -->
+    <div class="modal" :class="{ 'modal-open': deleteModalOpen }">
       <div class="modal-box">
-        <h3 class="font-bold text-xl text-error">Confirm Deletion</h3>
-        <button @click="closeDeleteModal" class="btn btn-sm btn-circle absolute right-2 top-2">✕</button>
+        <h3 class="font-bold text-lg text-error">Delete Picture</h3>
         
         <div class="py-4">
-          <p>Are you sure you want to delete the image <strong>{{ fileToDelete }}</strong>?</p>
-          <p class="mt-2 text-warning">This action cannot be undone.</p>
-        </div>
-        
-        <div v-if="deleteError" class="alert alert-error mt-4">
-          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          <span>{{ deleteError }}</span>
+          <div v-if="deleteSuccess" class="alert alert-success mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>Picture deleted successfully!</span>
+          </div>
+          
+          <div v-if="deleteError" class="alert alert-error mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>{{ deleteError }}</span>
+          </div>
+          
+          <div v-if="bookForDelete" class="alert alert-warning mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <span>Are you sure you want to delete the picture for "{{ bookForDelete.name }}"?</span>
+          </div>
+          
+          <div v-if="bookForDelete && bookForDelete.static_resources && bookForDelete.static_resources.picture_url" class="flex justify-center mb-4">
+            <img :src="bookForDelete.static_resources.picture_url" :alt="bookForDelete.name" class="h-40 object-contain rounded-lg" />
+          </div>
+          
+          <div v-if="bookForDelete" class="text-sm text-info mb-4">
+            <p>Book ID: {{ bookForDelete.books_id }}</p>
+            <p>This action cannot be undone.</p>
+          </div>
         </div>
         
         <div class="modal-action">
-          <button @click="closeDeleteModal" class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-outline" @click="closeDeleteModal">Cancel</button>
           <button 
-            @click="confirmDelete" 
             class="btn btn-error" 
-            :disabled="isDeleting"
+            :disabled="!bookForDelete || deleting" 
+            @click="deletePicture"
           >
-            <span v-if="isDeleting" class="loading loading-spinner loading-sm mr-2"></span>
-            {{ isDeleting ? 'Deleting...' : 'Delete Image' }}
+            <span v-if="deleting" class="loading loading-spinner loading-sm"></span>
+            Delete Picture
           </button>
         </div>
       </div>
@@ -243,283 +183,183 @@
 </template>
 
 <script>
-import axios from 'axios';
-
 export default {
-  name: 'PicUpload',
   data() {
     return {
-      // Books data
       books: [],
-      selectedBookId: '',
-      loadingBooks: false,
-      booksError: null,
-      
-      // Pictures data
-      pictures: [],
-      isLoading: false,
+      loading: true,
       error: null,
-      
-      // File upload
+      selectedBook: null,
       selectedFile: null,
-      isUploading: false,
+      filePreview: null,
+      uploading: false,
+      uploadSuccess: false,
       uploadError: null,
+      isUpdateMode: false,
       
-      // Update modal
-      showEditModal: false,
-      selectedPicture: {},
-      updateError: null,
-      
-      // View modal
-      showViewModal: false,
-      
-      // Delete modal
-      showDeleteModal: false,
-      fileToDelete: null,
-      isDeleting: false,
+      // Delete functionality
+      deleteModalOpen: false,
+      bookForDelete: null,
+      deleting: false,
+      deleteSuccess: false,
       deleteError: null
     }
   },
-  created() {
-    this.fetchBooks();
-  },
-  watch: {
-    selectedBookId(newVal) {
-      if (newVal) {
-        this.fetchPictures();
-      } else {
-        this.pictures = [];
-      }
-    }
+  mounted() {
+    this.fetchBooks()
   },
   methods: {
-    // Book methods
     async fetchBooks() {
-      this.loadingBooks = true;
-      this.booksError = null;
+      this.loading = true
+      this.error = null
       
       try {
-        const response = await axios.get('http://localhost:5000/books');
-        this.books = response.data;
-      } catch (error) {
-        console.error('Error fetching books:', error);
-        this.booksError = 'Failed to load books. Please try again later.';
-      } finally {
-        this.loadingBooks = false;
-      }
-    },
-    
-    // Picture methods
-    async fetchPictures() {
-      if (!this.selectedBookId) return;
-      
-      this.isLoading = true;
-      this.error = null;
-      
-      try {
-        const response = await axios.get(`http://localhost:5000/pictures?book_id=${this.selectedBookId}`);
+        const response = await fetch('http://localhost:5000/books')
         
-        // Transform data if needed
-        this.pictures = response.data.map(pic => {
-          // Add default values if properties are missing
-          return {
-            ...pic,
-            size: pic.size || 0,
-            upload_date: pic.upload_date || new Date().toISOString()
-          };
-        });
-      } catch (error) {
-        console.error('Error fetching pictures:', error);
-        this.error = 'Failed to load pictures. Please try again later.';
+        if (!response.ok) {
+          throw new Error(`Failed to fetch books: ${response.status} ${response.statusText}`)
+        }
+        
+        this.books = await response.json()
+      } catch (err) {
+        console.error('Error fetching books:', err)
+        this.error = 'Failed to load books. Please try again later.'
       } finally {
-        this.isLoading = false;
+        this.loading = false
       }
     },
     
-    handleFileSelect(event) {
-      this.selectedFile = event.target.files[0];
-      this.uploadError = null;
-      this.updateError = null;
+    selectBook(book) {
+      this.selectedBook = book
+      this.selectedFile = null
+      this.filePreview = null
+      this.uploadSuccess = false
+      this.uploadError = null
+      this.isUpdateMode = false
+      
+      // Reset file input
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = ''
+      }
+    },
+    
+    selectBookForUpdate(book) {
+      this.selectBook(book)
+      this.isUpdateMode = true
+    },
+    
+    closeModal() {
+      this.selectedBook = null
+      this.selectedFile = null
+      this.filePreview = null
+      this.isUpdateMode = false
+    },
+    
+    handleFileChange(event) {
+      const file = event.target.files[0]
+      if (!file) return
+      
+      // Store the file
+      this.selectedFile = file
+      this.uploadSuccess = false
+      this.uploadError = null
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = e => {
+        this.filePreview = e.target.result
+      }
+      reader.readAsDataURL(file)
     },
     
     async uploadPicture() {
-      if (!this.selectedFile) {
-        this.uploadError = 'Please select a file first';
-        return;
-      }
+      if (!this.selectedFile || !this.selectedBook) return
       
-      if (!this.selectedBookId) {
-        this.uploadError = 'Please select a book first';
-        return;
-      }
-      
-      this.isUploading = true;
-      this.uploadError = null;
+      this.uploading = true
+      this.uploadSuccess = false
+      this.uploadError = null
       
       try {
-        const formData = new FormData();
-        formData.append('picture', this.selectedFile);
+        const formData = new FormData()
+        formData.append('file', this.selectedFile)
         
-        await axios.post(`http://localhost:5000/pictures?book_id=${this.selectedBookId}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        // Use PUT method for update mode, POST for new upload
+        const method = this.isUpdateMode ? 'PUT' : 'POST'
+        console.log(`${method} request to book_id: ${this.selectedBook.books_id}`)
         
-        // Reset file input
-        this.selectedFile = null;
+        const response = await fetch(`http://localhost:3000/pictures?book_id=${this.selectedBook.books_id}`, {
+          method: method,
+          body: formData
+        })
         
-        // Refresh picture list
-        await this.fetchPictures();
+        console.log('Response status:', response.status)
         
-        // Success notification
-        this.showToast('success', 'Picture uploaded successfully!');
-      } catch (error) {
-        console.error('Error uploading picture:', error);
-        this.uploadError = `Failed to upload: ${error.response?.data?.message || error.message}`;
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Error response:', errorText)
+          throw new Error(`${this.isUpdateMode ? 'Update' : 'Upload'} failed: ${response.status} ${response.statusText}`)
+        }
+        
+        this.uploadSuccess = true
+        
+        // Refresh books data after successful upload
+        setTimeout(() => {
+          this.fetchBooks()
+          this.closeModal()
+        }, 1500)
+      } catch (err) {
+        console.error(`Error ${this.isUpdateMode ? 'updating' : 'uploading'} picture:`, err)
+        this.uploadError = `Failed to ${this.isUpdateMode ? 'update' : 'upload'} picture. Please try again.`
       } finally {
-        this.isUploading = false;
+        this.uploading = false
       }
     },
     
-    // Modal methods
-    openViewModal(picture) {
-      this.selectedPicture = picture;
-      this.showViewModal = true;
-    },
-    
-    closeViewModal() {
-      this.showViewModal = false;
-    },
-    
-    openEditModal(picture) {
-      this.selectedPicture = picture;
-      this.selectedFile = null;
-      this.updateError = null;
-      this.showEditModal = true;
-    },
-    
-    closeEditModal() {
-      this.showEditModal = false;
-      this.selectedFile = null;
-    },
-    
-    async updatePicture() {
-      if (!this.selectedFile) {
-        this.updateError = 'Please select a file first';
-        return;
-      }
-      
-      this.isUploading = true;
-      this.updateError = null;
-      
-      try {
-        const formData = new FormData();
-        formData.append('picture', this.selectedFile);
-        
-        await axios.put(`http://localhost:5000/pictures?book_id=${this.selectedPicture.filename}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-        
-        // Close modal and reset
-        this.closeEditModal();
-        
-        // Refresh picture list
-        await this.fetchPictures();
-        
-        // Success notification
-        this.showToast('success', 'Picture updated successfully!');
-      } catch (error) {
-        console.error('Error updating picture:', error);
-        this.updateError = `Failed to update: ${error.response?.data?.message || error.message}`;
-      } finally {
-        this.isUploading = false;
-      }
-    },
-    
-    confirmDelete(filename) {
-      this.fileToDelete = filename;
-      this.deleteError = null;
-      this.showDeleteModal = true;
+    // Delete functionality methods
+    openDeleteModal(book) {
+      this.deleteModalOpen = true
+      this.bookForDelete = book
+      this.deleteSuccess = false
+      this.deleteError = null
     },
     
     closeDeleteModal() {
-      this.showDeleteModal = false;
-      this.fileToDelete = null;
+      this.deleteModalOpen = false
+      this.bookForDelete = null
     },
     
-    async confirmDelete() {
-      if (!this.fileToDelete) return;
+    async deletePicture() {
+      if (!this.bookForDelete) return
       
-      this.isDeleting = true;
-      this.deleteError = null;
+      this.deleting = true
+      this.deleteSuccess = false
+      this.deleteError = null
       
       try {
-        await axios.delete(`http://localhost:5000/pictures?filename=${this.fileToDelete}`);
+        const response = await fetch(`http://localhost:3000/pictures?book_id=${this.bookForDelete.books_id}`, {
+          method: 'DELETE'
+        })
         
-        // Close modal and reset
-        this.closeDeleteModal();
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Error response:', errorText)
+          throw new Error(`Delete failed: ${response.status} ${response.statusText}`)
+        }
         
-        // Refresh picture list
-        await this.fetchPictures();
+        this.deleteSuccess = true
         
-        // Success notification
-        this.showToast('success', 'Picture deleted successfully!');
-      } catch (error) {
-        console.error('Error deleting picture:', error);
-        this.deleteError = `Failed to delete: ${error.response?.data?.message || error.message}`;
+        // Refresh books data after successful deletion
+        setTimeout(() => {
+          this.fetchBooks()
+          if (this.deleteSuccess) {
+            this.closeDeleteModal()
+          }
+        }, 1500)
+      } catch (err) {
+        console.error('Error deleting picture:', err)
+        this.deleteError = 'Failed to delete picture. Please try again.'
       } finally {
-        this.isDeleting = false;
-      }
-    },
-    
-    // Utility methods
-    getImageUrl(filename) {
-      return `http://localhost:5000/pictures/${filename}`;
-    },
-    
-    handleImageError(e) {
-      // Replace with placeholder if image fails to load
-      e.target.src = 'https://via.placeholder.com/300x200?text=Image+Not+Found';
-    },
-    
-    formatFileSize(bytes) {
-      if (!bytes || bytes === 0) return 'Unknown';
-      
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(1024));
-      return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
-    },
-    
-    formatDate(dateString) {
-      if (!dateString) return 'Unknown';
-      
-      try {
-        const date = new Date(dateString);
-        return date.toLocaleDateString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        });
-      } catch (error) {
-        return 'Invalid date';
-      }
-    },
-    
-    showToast(type, message) {
-      // Use toast library if available
-      if (typeof this.$toast !== 'undefined') {
-        this.$toast[type](message);
-      } else if (typeof this.$notification !== 'undefined') {
-        this.$notification[type]({
-          message: type.charAt(0).toUpperCase() + type.slice(1),
-          description: message
-        });
-      } else {
-        // Fallback to alert
-        alert(message);
+        this.deleting = false
       }
     }
   }
